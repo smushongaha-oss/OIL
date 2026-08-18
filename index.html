@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WTI CRUDE // LIVE FEED</title>
+<title>WTI CRUDE // US OIL LIVE FEED</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&display=swap');
   :root {
@@ -48,31 +48,6 @@
   }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; transition: 0.3s; }
   .dot.on { background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); }
-
-  .keycard {
-    background: var(--glass); backdrop-filter: blur(16px);
-    border: 1px solid var(--glass-border); border-radius: 16px;
-    padding: 18px; margin: 18px 0; text-align: center;
-  }
-  .keycard h2 { font-family: 'Orbitron', sans-serif; font-size: 0.85rem; color: var(--neon-amber); letter-spacing: 1.5px; margin-bottom: 8px; }
-  .keycard p { font-size: 0.8rem; color: #94a3b8; margin-bottom: 12px; line-height: 1.5; }
-  .keyrow { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-  .keyrow input {
-    flex: 1; min-width: 220px; max-width: 400px;
-    background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border);
-    border-radius: 8px; padding: 10px 12px; color: #fff; font-family: 'Share Tech Mono', monospace;
-    font-size: 0.85rem;
-  }
-  .keyrow button {
-    background: linear-gradient(90deg, var(--neon-amber), #ff6a00);
-    border: none; border-radius: 8px; padding: 10px 20px;
-    font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.8rem;
-    color: #1a0f00; cursor: pointer; letter-spacing: 1px;
-  }
-  .keyrow button:hover { filter: brightness(1.1); }
-  .keyrow a { color: var(--neon-cyan); text-decoration: none; }
-  .keyrow a:hover { text-decoration: underline; }
-  .keynote { font-size: 0.7rem; color: #64748b; margin-top: 10px; }
 
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 20px 0; }
   .card {
@@ -119,22 +94,20 @@
 
 <div class="overlay">
   <header>
-    <h1>WTI CRUDE // LIVE FEED</h1>
-    <div class="sub">US OIL BENCHMARK • REAL PRICE DATA</div>
+    <h1>WTI CRUDE // US OIL</h1>
+    <div class="sub">LIVE PRICE FEED • NYMEX BENCHMARK</div>
     <div class="status-bar">
       <div class="dot" id="dot"></div>
       <span id="statusText">Connecting...</span>
     </div>
   </header>
 
-
-
   <div class="grid">
     <div class="card">
       <h2>Live Price — WTI</h2>
       <div class="price" id="livePrice">—</div>
-      <div class="unit" id="unitText">USD per barrel</div>
-      <div style="margin-top:6px;font-size:0.82rem;color:#94a3b8;" id="changeText">Waiting for connection...</div>
+      <div class="unit">USD per barrel</div>
+      <div style="margin-top:6px;font-size:0.82rem;color:#94a3b8;" id="changeText">Waiting for data...</div>
     </div>
 
     <div class="card">
@@ -153,7 +126,7 @@
         <div class="level"><span>Resistance 1</span><strong id="r1">—</strong></div>
         <div class="level"><span>Resistance 2</span><strong id="r2">—</strong></div>
       </div>
-      <div class="note">Computed live from this session's observed high/low — not fixed values.</div>
+      <div class="note">Calculated from this session’s observed high / low</div>
     </div>
   </div>
 
@@ -170,11 +143,8 @@
   </div>
 
   <footer>
-    Source: Stooq (continuous WTI light crude futures, symbol CL.F), routed through a public CORS proxy
-    (api.allorigins.win) because Stooq itself doesn't allow direct browser access — the proxy just relays the
-    same public data, it doesn't alter it. If the proxy is down, the feed will show connection errors below.
-    Session levels, trend signal, and chart reflect only what this page has observed since you opened it.
-    Nothing here is a trading recommendation.
+    Source: Stooq continuous WTI futures (CL.F) via public CORS proxy<br>
+    Educational use only — not financial advice
   </footer>
 </div>
 
@@ -270,7 +240,6 @@
     const sma20 = prices.slice(-lookback).reduce((a,b)=>a+b,0) / lookback;
     const sma8  = prices.slice(-Math.min(prices.length,8)).reduce((a,b)=>a+b,0) / Math.min(prices.length,8);
     const sma3  = prices.slice(-3).reduce((a,b)=>a+b,0) / 3;
-
     const momentum = current - prices[prices.length-6];
     const strength = Math.abs(momentum);
 
@@ -323,13 +292,12 @@
   }
 
   function parseStooqCSV(text) {
-    // Format: Symbol,Date,Time,Open,High,Low,Close,Volume
     const lines = text.trim().split('\n');
     if(lines.length < 2) throw new Error('Empty CSV response');
     const cols = lines[1].split(',');
-    if(cols.length < 7) throw new Error('Unexpected CSV shape: ' + lines[1]);
+    if(cols.length < 7) throw new Error('Unexpected CSV shape');
     const close = parseFloat(cols[6]);
-    if(isNaN(close)) throw new Error('Could not parse close price from: ' + lines[1]);
+    if(isNaN(close)) throw new Error('Could not parse price');
     return close;
   }
 
@@ -343,7 +311,7 @@
       const price = parseStooqCSV(text);
 
       document.getElementById('dot').classList.add('on');
-      document.getElementById('statusText').textContent = 'Connected • WTI Crude (Stooq)';
+      document.getElementById('statusText').textContent = 'Live • WTI Crude';
 
       if(price === lastRawPrice) {
         addLog('Polled — price unchanged ($' + price.toFixed(2) + ')');
@@ -359,7 +327,7 @@
     }
   }
 
-  addLog('Live feed started');
+  addLog('US Oil (WTI) live feed started');
   fetchPrice();
   setInterval(fetchPrice, 6000);
 </script>
