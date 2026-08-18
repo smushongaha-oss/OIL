@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WTI CRUDE // LIVE FEED</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&display=swap');
+  :root {
+    --neon-amber: #ffb02e;
+    --neon-cyan: #00f0ff;
+    --neon-green: #00ff41;
+    --bg-dark: #0a0603;
+    --glass: rgba(23, 15, 5, 0.65);
+    --glass-border: rgba(255, 176, 46, 0.25);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg-dark);
+    color: #e2e8f0;
+    font-family: 'Share Tech Mono', monospace;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+  #matrix {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0; opacity: 0.22;
+  }
+  .overlay {
+    position: relative; z-index: 10;
+    max-width: 1200px; margin: 0 auto; padding: 20px;
+  }
+  header { text-align: center; padding: 20px 0 12px; }
+  h1 {
+    font-family: 'Orbitron', sans-serif; font-weight: 900;
+    font-size: clamp(1.5rem, 4.5vw, 2.5rem);
+    background: linear-gradient(90deg, var(--neon-amber), #ff6a00, var(--neon-cyan));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: 3px;
+  }
+  .sub { color: var(--neon-amber); font-size: 0.85rem; margin-top: 6px; letter-spacing: 1.5px; opacity: 0.9; }
+  .status-bar {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 10px; padding: 5px 14px;
+    background: rgba(0,0,0,0.4); border-radius: 20px;
+    border: 1px solid rgba(255,176,46,0.2); font-size: 0.82rem;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; transition: 0.3s; }
+  .dot.on { background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); }
+
+  .keycard {
+    background: var(--glass); backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border); border-radius: 16px;
+    padding: 18px; margin: 18px 0; text-align: center;
+  }
+  .keycard h2 { font-family: 'Orbitron', sans-serif; font-size: 0.85rem; color: var(--neon-amber); letter-spacing: 1.5px; margin-bottom: 8px; }
+  .keycard p { font-size: 0.8rem; color: #94a3b8; margin-bottom: 12px; line-height: 1.5; }
+  .keyrow { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .keyrow input {
+    flex: 1; min-width: 220px; max-width: 400px;
+    background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border);
+    border-radius: 8px; padding: 10px 12px; color: #fff; font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+  }
+  .keyrow button {
+    background: linear-gradient(90deg, var(--neon-amber), #ff6a00);
+    border: none; border-radius: 8px; padding: 10px 20px;
+    font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.8rem;
+    color: #1a0f00; cursor: pointer; letter-spacing: 1px;
+  }
+  .keyrow button:hover { filter: brightness(1.1); }
+  .keyrow a { color: var(--neon-cyan); text-decoration: none; }
+  .keyrow a:hover { text-decoration: underline; }
+  .keynote { font-size: 0.7rem; color: #64748b; margin-top: 10px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 20px 0; }
+  .card {
+    background: var(--glass); backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border); border-radius: 16px;
+    padding: 18px; position: relative; overflow: hidden;
+  }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--neon-amber), transparent);
+  }
+  .card h2 { font-family: 'Orbitron', sans-serif; font-size: 0.75rem; color: var(--neon-amber); letter-spacing: 1.5px; margin-bottom: 10px; text-transform: uppercase; }
+  .price { font-family: 'Orbitron', sans-serif; font-size: 2.6rem; font-weight: 700; color: #fff; }
+  .price.up { color: var(--neon-green); }
+  .price.down { color: #ff3366; }
+  .unit { font-size: 0.85rem; color: #94a3b8; margin-top: 2px; }
+  .note { font-size: 0.65rem; color: #64748b; margin-top: 4px; }
+  .bias-core {
+    font-family: 'Orbitron', sans-serif; font-size: 1.7rem; font-weight: 900; text-align: center;
+    padding: 16px; border-radius: 12px;
+    background: linear-gradient(135deg, rgba(255,176,46,0.15), rgba(255,106,0,0.08));
+    border: 2px solid #ffb02e; color: var(--neon-amber);
+    animation: pulse 2.5s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 12px rgba(255,176,46,0.3); }
+    50% { box-shadow: 0 0 35px rgba(255,176,46,0.7); }
+  }
+  .levels { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .level { background: rgba(0,0,0,0.35); padding: 10px; border-radius: 10px; text-align: center; }
+  .level span { display: block; font-size: 0.68rem; color: #94a3b8; margin-bottom: 2px; }
+  .level strong { font-family: 'Orbitron', sans-serif; font-size: 1.1rem; }
+  .chart-box { height: 140px; background: rgba(0,0,0,0.4); border-radius: 10px; margin-top: 8px; width: 100%; }
+  .log-box { background: rgba(0,0,0,0.5); border-radius: 12px; height: 200px; overflow: hidden; border: 1px solid rgba(255,176,46,0.15); }
+  .log-content { padding: 12px; height: 100%; overflow-y: auto; font-size: 0.82rem; line-height: 1.45; }
+  .log-entry { margin-bottom: 6px; }
+  .log-entry .t { color: var(--neon-amber); font-weight: 700; }
+  .log-entry.err { color: #f87171; }
+  footer { text-align: center; margin-top: 25px; color: #64748b; font-size: 0.72rem; line-height: 1.6; }
+</style>
+</head>
+<body>
+<canvas id="matrix"></canvas>
+
+<div class="overlay">
+  <header>
+    <h1>WTI CRUDE // LIVE FEED</h1>
+    <div class="sub">US OIL BENCHMARK • REAL PRICE DATA</div>
+    <div class="status-bar">
+      <div class="dot" id="dot"></div>
+      <span id="statusText">Connecting...</span>
+    </div>
+  </header>
+
+
+
+  <div class="grid">
+    <div class="card">
+      <h2>Live Price — WTI</h2>
+      <div class="price" id="livePrice">—</div>
+      <div class="unit" id="unitText">USD per barrel</div>
+      <div style="margin-top:6px;font-size:0.82rem;color:#94a3b8;" id="changeText">Waiting for connection...</div>
+    </div>
+
+    <div class="card">
+      <h2>Trend Signal</h2>
+      <div class="bias-core" id="biasCore">WAITING</div>
+      <div style="text-align:center;margin-top:10px;font-size:0.82rem;color:#94a3b8;" id="biasDesc">
+        Collecting samples...
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Session Levels</h2>
+      <div class="levels">
+        <div class="level"><span>Support 1</span><strong id="s1">—</strong></div>
+        <div class="level"><span>Support 2</span><strong id="s2">—</strong></div>
+        <div class="level"><span>Resistance 1</span><strong id="r1">—</strong></div>
+        <div class="level"><span>Resistance 2</span><strong id="r2">—</strong></div>
+      </div>
+      <div class="note">Computed live from this session's observed high/low — not fixed values.</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <h2>Live Mini Chart</h2>
+    <canvas id="miniChart" class="chart-box" width="800" height="140"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>Live Data Log</h2>
+    <div class="log-box">
+      <div class="log-content" id="liveLog"></div>
+    </div>
+  </div>
+
+  <footer>
+    Source: Stooq (continuous WTI light crude futures, symbol CL.F), routed through a public CORS proxy
+    (api.allorigins.win) because Stooq itself doesn't allow direct browser access — the proxy just relays the
+    same public data, it doesn't alter it. If the proxy is down, the feed will show connection errors below.
+    Session levels, trend signal, and chart reflect only what this page has observed since you opened it.
+    Nothing here is a trading recommendation.
+  </footer>
+</div>
+
+<script>
+  // Matrix Rain
+  const canvas = document.getElementById('matrix');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const chars = '01WTICRUDEOILUSDBBLNYMEXCUSHING';
+  const fontSize = 14;
+  const columns = canvas.width / fontSize;
+  const drops = Array(Math.floor(columns)).fill(1);
+  function drawMatrix() {
+    ctx.fillStyle = 'rgba(10,6,3,0.07)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#ffb02e';
+    ctx.font = fontSize + 'px monospace';
+    for(let i=0;i<drops.length;i++){
+      ctx.fillText(chars[Math.floor(Math.random()*chars.length)], i*fontSize, drops[i]*fontSize);
+      if(drops[i]*fontSize > canvas.height && Math.random()>0.975) drops[i]=0;
+      drops[i]++;
+    }
+  }
+  setInterval(drawMatrix, 50);
+  window.addEventListener('resize', ()=>{ canvas.width=window.innerWidth; canvas.height=window.innerHeight; });
+
+  // State
+  let lastPrice = null;
+  let lastRawPrice = null;
+  const prices = [];
+  const chartCanvas = document.getElementById('miniChart');
+  const chartCtx = chartCanvas.getContext('2d');
+
+  const logEl = document.getElementById('liveLog');
+  function addLog(msg, isErr) {
+    const time = new Date().toISOString().substr(11,8);
+    const div = document.createElement('div');
+    div.className = 'log-entry' + (isErr ? ' err' : '');
+    div.innerHTML = `<span class="t">[${time}]</span> ${msg}`;
+    logEl.appendChild(div);
+    while(logEl.children.length > 16) logEl.removeChild(logEl.firstChild);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function updateUI(price) {
+    const el = document.getElementById('livePrice');
+    el.textContent = '$' + price.toFixed(2);
+
+    if(lastPrice !== null) {
+      const diff = price - lastPrice;
+      el.className = 'price ' + (diff > 0 ? 'up' : diff < 0 ? 'down' : '');
+      document.getElementById('changeText').textContent =
+        (diff >= 0 ? '+' : '') + diff.toFixed(2) + ' from last update';
+    } else {
+      document.getElementById('changeText').textContent = 'Live data received';
+    }
+    lastPrice = price;
+
+    prices.push(price);
+    if(prices.length > 120) prices.shift();
+
+    updateLevels();
+    calculateBias();
+    drawMiniChart();
+  }
+
+  function updateLevels() {
+    if(prices.length < 2) return;
+    const high = Math.max(...prices);
+    const low = Math.min(...prices);
+    const mid = prices[prices.length - 1];
+    document.getElementById('r2').textContent = '$' + high.toFixed(2);
+    document.getElementById('r1').textContent = '$' + (mid + (high - mid) / 2).toFixed(2);
+    document.getElementById('s1').textContent = '$' + (mid - (mid - low) / 2).toFixed(2);
+    document.getElementById('s2').textContent = '$' + low.toFixed(2);
+  }
+
+  function calculateBias() {
+    const biasEl = document.getElementById('biasCore');
+    const descEl = document.getElementById('biasDesc');
+
+    if(prices.length < 6) {
+      biasEl.textContent = 'COLLECTING';
+      biasEl.style.borderColor = '#64748b';
+      biasEl.style.color = '#94a3b8';
+      descEl.textContent = `Need more samples (${prices.length}/6)`;
+      return;
+    }
+
+    const current = prices[prices.length-1];
+    const lookback = Math.min(prices.length, 20);
+    const sma20 = prices.slice(-lookback).reduce((a,b)=>a+b,0) / lookback;
+    const sma8  = prices.slice(-Math.min(prices.length,8)).reduce((a,b)=>a+b,0) / Math.min(prices.length,8);
+    const sma3  = prices.slice(-3).reduce((a,b)=>a+b,0) / 3;
+
+    const momentum = current - prices[prices.length-6];
+    const strength = Math.abs(momentum);
+
+    if(sma3 > sma8 && sma8 > sma20 && momentum > 0.05) {
+      biasEl.textContent = 'BULLISH';
+      biasEl.style.borderColor = '#22c55e';
+      biasEl.style.color = '#4ade80';
+      descEl.textContent = `Upward drift • strength ${strength.toFixed(2)}`;
+    } else if(sma3 < sma8 && sma8 < sma20 && momentum < -0.05) {
+      biasEl.textContent = 'BEARISH';
+      biasEl.style.borderColor = '#ef4444';
+      biasEl.style.color = '#f87171';
+      descEl.textContent = `Downward drift • strength ${strength.toFixed(2)}`;
+    } else {
+      biasEl.textContent = 'NEUTRAL';
+      biasEl.style.borderColor = '#64748b';
+      biasEl.style.color = '#94a3b8';
+      descEl.textContent = 'No clear drift in observed samples';
+    }
+  }
+
+  function drawMiniChart() {
+    const w = chartCanvas.width;
+    const h = chartCanvas.height;
+    chartCtx.clearRect(0, 0, w, h);
+    if(prices.length < 2) return;
+
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const range = max - min || 0.01;
+
+    chartCtx.beginPath();
+    chartCtx.strokeStyle = '#ffb02e';
+    chartCtx.lineWidth = 2;
+
+    prices.forEach((p, i) => {
+      const x = prices.length === 1 ? w/2 : (i / (prices.length - 1)) * (w - 20) + 10;
+      const y = h - 15 - ((p - min) / range) * (h - 30);
+      if(i === 0) chartCtx.moveTo(x, y);
+      else chartCtx.lineTo(x, y);
+    });
+    chartCtx.stroke();
+
+    const lastX = prices.length === 1 ? w/2 : w - 10;
+    const lastY = h - 15 - ((prices[prices.length-1] - min) / range) * (h - 30);
+    chartCtx.beginPath();
+    chartCtx.fillStyle = '#00ff41';
+    chartCtx.arc(lastX, lastY, 4, 0, Math.PI*2);
+    chartCtx.fill();
+  }
+
+  function parseStooqCSV(text) {
+    // Format: Symbol,Date,Time,Open,High,Low,Close,Volume
+    const lines = text.trim().split('\n');
+    if(lines.length < 2) throw new Error('Empty CSV response');
+    const cols = lines[1].split(',');
+    if(cols.length < 7) throw new Error('Unexpected CSV shape: ' + lines[1]);
+    const close = parseFloat(cols[6]);
+    if(isNaN(close)) throw new Error('Could not parse close price from: ' + lines[1]);
+    return close;
+  }
+
+  async function fetchPrice() {
+    try {
+      const stooqUrl = 'https://stooq.com/q/l/?s=cl.f&f=sd2t2ohlcv&h&e=csv';
+      const proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(stooqUrl) + '&_=' + Date.now();
+      const res = await fetch(proxied);
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      const price = parseStooqCSV(text);
+
+      document.getElementById('dot').classList.add('on');
+      document.getElementById('statusText').textContent = 'Connected • WTI Crude (Stooq)';
+
+      if(price === lastRawPrice) {
+        addLog('Polled — price unchanged ($' + price.toFixed(2) + ')');
+      } else {
+        addLog('New price: $' + price.toFixed(2));
+      }
+      lastRawPrice = price;
+      updateUI(price);
+    } catch (err) {
+      document.getElementById('dot').classList.remove('on');
+      document.getElementById('statusText').textContent = 'Connection issue';
+      addLog('Fetch error: ' + err.message, true);
+    }
+  }
+
+  addLog('Live feed started');
+  fetchPrice();
+  setInterval(fetchPrice, 6000);
+</script>
+</body>
+</html>
