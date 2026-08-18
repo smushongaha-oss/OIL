@@ -48,7 +48,6 @@
   }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; transition: 0.3s; }
   .dot.on { background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); }
-
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 20px 0; }
   .card {
     background: var(--glass); backdrop-filter: blur(16px);
@@ -143,8 +142,7 @@
   </div>
 
   <footer>
-    Source: Stooq continuous WTI futures (CL.F) via public CORS proxy<br>
-    Educational use only — not financial advice
+    Source: OilPriceAPI Demo (WTI) • Educational use only
   </footer>
 </div>
 
@@ -174,7 +172,6 @@
 
   // State
   let lastPrice = null;
-  let lastRawPrice = null;
   const prices = [];
   const chartCanvas = document.getElementById('miniChart');
   const chartCtx = chartCanvas.getContext('2d');
@@ -205,7 +202,7 @@
     lastPrice = price;
 
     prices.push(price);
-    if(prices.length > 120) prices.shift();
+    if(prices.length > 80) prices.shift();
 
     updateLevels();
     calculateBias();
@@ -257,7 +254,7 @@
       biasEl.textContent = 'NEUTRAL';
       biasEl.style.borderColor = '#64748b';
       biasEl.style.color = '#94a3b8';
-      descEl.textContent = 'No clear drift in observed samples';
+      descEl.textContent = 'No clear drift';
     }
   }
 
@@ -276,14 +273,14 @@
     chartCtx.lineWidth = 2;
 
     prices.forEach((p, i) => {
-      const x = prices.length === 1 ? w/2 : (i / (prices.length - 1)) * (w - 20) + 10;
+      const x = (i / (prices.length - 1)) * (w - 20) + 10;
       const y = h - 15 - ((p - min) / range) * (h - 30);
       if(i === 0) chartCtx.moveTo(x, y);
       else chartCtx.lineTo(x, y);
     });
     chartCtx.stroke();
 
-    const lastX = prices.length === 1 ? w/2 : w - 10;
+    const lastX = w - 10;
     const lastY = h - 15 - ((prices[prices.length-1] - min) / range) * (h - 30);
     chartCtx.beginPath();
     chartCtx.fillStyle = '#00ff41';
@@ -291,35 +288,25 @@
     chartCtx.fill();
   }
 
-  function parseStooqCSV(text) {
-    const lines = text.trim().split('\n');
-    if(lines.length < 2) throw new Error('Empty CSV response');
-    const cols = lines[1].split(',');
-    if(cols.length < 7) throw new Error('Unexpected CSV shape');
-    const close = parseFloat(cols[6]);
-    if(isNaN(close)) throw new Error('Could not parse price');
-    return close;
-  }
-
   async function fetchPrice() {
     try {
-      const stooqUrl = 'https://stooq.com/q/l/?s=cl.f&f=sd2t2ohlcv&h&e=csv';
-      const proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(stooqUrl) + '&_=' + Date.now();
-      const res = await fetch(proxied);
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      const text = await res.text();
-      const price = parseStooqCSV(text);
+      // Free demo endpoint - no key needed
+      const res = await fetch('https://api.oilpriceapi.com/v1/demo/prices');
+      const data = await res.json();
+
+      let price = null;
+      if (data && data.data && data.data.prices) {
+        const wti = data.data.prices.find(p => p.code === 'WTI_USD' || p.name?.includes('WTI'));
+        if (wti) price = parseFloat(wti.price);
+      }
+
+      if (!price) throw new Error('WTI price not found in response');
 
       document.getElementById('dot').classList.add('on');
       document.getElementById('statusText').textContent = 'Live • WTI Crude';
-
-      if(price === lastRawPrice) {
-        addLog('Polled — price unchanged ($' + price.toFixed(2) + ')');
-      } else {
-        addLog('New price: $' + price.toFixed(2));
-      }
-      lastRawPrice = price;
+      addLog('New price: $' + price.toFixed(2));
       updateUI(price);
+
     } catch (err) {
       document.getElementById('dot').classList.remove('on');
       document.getElementById('statusText').textContent = 'Connection issue';
@@ -329,7 +316,7 @@
 
   addLog('US Oil (WTI) live feed started');
   fetchPrice();
-  setInterval(fetchPrice, 6000);
+  setInterval(fetchPrice, 15000); // every 15 seconds (demo limit friendly)
 </script>
 </body>
 </html>
